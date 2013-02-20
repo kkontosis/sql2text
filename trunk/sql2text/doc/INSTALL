@@ -1,0 +1,79 @@
+libsql2text INSTALLATION
+
+An easy way to build libsql2text is to download and use the `sql2textbuilder.sh` 
+script, which can be found in the `sql2textfs' project site.
+It handles downloading and building the special dependencies automatically.
+The following instructions give details for a manual installation.
+
+1. Requirements
+================================================================================
+
+libsql2text currently compiles only on POSIX systems.
+It has been tested in a Ubuntu Linux 9.04.
+
+The programs needed to compile libsql2text are:
+--------------------------------------------------------------------------------
+	g++
+	make
+	libpcre development package
+	libpcre++ development package
+	unixodbc development package
+	libmysqlclient development package
+	libsqlite3 development package
+	libpq development package
+--------------------------------------------------------------------------------
+	libcppdb
+--------------------------------------------------------------------------------
+	libretranse
+--------------------------------------------------------------------------------
+
+Note that in different systems, the package names may vary.
+
+The library libcppdb is part of the cppcms project and has separate
+installation instructions. See also: http://cppcms.com
+
+The library libretranse is part of the same project as libsql2text
+and has separate installation instructions.
+
+In order to build libsql2text, the projects
+	cppdb
+	retranse
+
+need to be placed in the parent directory of the one that contains libsql2text
+with the exact names `cppdb` and `retranse`.
+Listing the parent directory should look like this:
+
+	cppdb
+	retranse
+	sql2text
+
+Before building sql2text make sure that cppdb and retranse have been built.
+
+
+2. Installation
+================================================================================
+
+Before building it is necessary to have an sql2text directory side by side 
+with its pre-compiled dependencies as described above.
+Go to the sql2text directory and type:
+
+	make
+
+The libsql2text library and the sql2text example program will be both compiled.
+After that, if you wish to install the library into /usr/local type:
+
+	sudo make install
+
+and the libsql2text libraries and headers together with the configuration
+files in /etc/sql2text will be installed.
+
+
+3. Unstalling libsql2text
+================================================================================
+
+To remove the libraries from /usr/local go to the source code directory
+and type:
+
+	sudo make uninstall
+
+

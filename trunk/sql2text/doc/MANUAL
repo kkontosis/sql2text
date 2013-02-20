@@ -1,0 +1,827 @@
+libsql2text MANUAL
+
+1. About libsql2text
+================================================================================
+
+`libsql2text' is a library for converting database tables to/from text files.
+Written by Kimon Kontosis in year 2012 for his major paper in
+Department of Informatics and Telecommunications,
+National & Kapodistrian University of Athens.
+Copyright (C) 2012, Kimon Kontosis
+
+
+The library `libsql2text` relies on `libretranse` which is the runtime
+library that parses and runs programs written in `retranse' - a language 
+based on regular expressions - which is part of the same project.
+The libsql2text library is also the basis for the `sql2textfs` project.
+This library reads tables from any database given a connection string
+and retrieves the table rows in a representation of lines of text.
+The text lines are tab-delimited to separate the data columns.
+This library is also capable of parsing lines of text and of converting
+back to tables and also modifies the database tables with entries
+of lines of text as data.
+The configuration file for this library is essential since much of the
+convertion functionality lies there and each database type requires
+a special configuration file. This file is written in retranse.
+For the database API the library uses `cppdb` which a the library for
+abstract database access used in the `cppcms` project. The cppdb
+library has an interface with `unixodbc` among others which is an ODBC
+driver that supports many databases. The cppdb layer complies with the 
+minimum required interface for this project and has simple C++ interface
+making the source code of libsql2text more reliable.
+This package contains the library and a program that demonstrates and runs 
+all the library functions from the command line.
+
+
+libsql2text is licensed under the GNU Lesser General Public License
+version 2.1 or later. See LICENSE.LESSER
+
+
+2. Installation
+================================================================================
+
+For INSTALLATION instructions, please refer to the file: INSTALL
+
+
+3. sql2text text file format
+================================================================================
+
+For the sql2text TEXT FILE FORMAT, please refer to the file: FORMAT
+
+
+4. The command line program sql2text
+================================================================================
+
+The binary sql2text is a command line front-end to the libsql2text library.
+When running `sql2text --help`, the following options are displayed:
+
+--------------------------------------------------------------------------------
+Usage: sql2text <connection-string> <command> [arguments]
+List of available commands:
+ls                              List databases
+ls <dbname>                     List tables in database <dbname>
+ls <dbname> <table>             List table <table>'s contents in database <db>
+lsh <dbname> <table>            List table's <table> header in database <db>
+mv <dbname> <table> <new>       Rename table <table> to <new> in database <db>
+mv <dbname> <table> <old> <new> Update line <old> to <new> in <table> in <db>
+rm <dbname>                     Remove database <db>
+rm <dbname> <table>             Remove table <table> from database <db>
+rm <dbname> <table> <x>         Remove 1 line <x> from <table> in database <db>
+rmd <dbname> <table>            Remove data from table <table> in database <db>
+mk <dbname>                     Create database <db>
+mk <dbname> <table> <head>      Create <table> in <db> from description <head>
+add <dbname> <table> <new>      Insert line <x> into <table> in database <db>
+
+def <col>                       Find column desc <col> definition in sql
+deco <row>                      Find actual values from single plain text row
+
+the <connection-string> of the database consists of pairs of the type:
+        key=value
+separated by semicolon (;) following the database type name and a colon (:)
+for example:
+        mysql:user=username;password=hackme;database=mysql
+see also the documentation of `cppcms` for connection string information
+
+In this manual we will use a mysql database as an example. The sample
+connection-string that we will use is:
+
+        mysql:user=root;password=root
+--------------------------------------------------------------------------------
+
+We suppose that there is a mysql database already set-up with the user
+`root' having password `root'.
+In the examples that follow, this connection string might be omitted to avoid
+the repetition. We will use the sample script `samples/mysql` instead.
+The script should be run from the directory that contains the binary sql2text.
+We can see that all this sample does is use "mysql:user=root;password=root"
+as the connection string:
+
+	$ cat samples/mysql
+	./sql2text "mysql:user=root;password=root" "$@"
+	
+For details about the database CONNECTION STRING in general, please refer
+to the file: CONNECTION
+
+We now list and explain all the commands of sql2text.
+
+
+4.1. The command ls
+================================================================================
+
+The command:
+	ls 
+shows a list of the databases that we have access to.
+For example:
+
+	$ ./sql2text "mysql:user=root;password=root" ls
+	information_schema	mysql	phpmyadmin	test
+
+Or using the script `samples/mysql`:
+
+	$ samples/mysql ls
+	information_schema	mysql	phpmyadmin	test
+
+In this example we see a list of four databases that are accessible.
+
+
+4.2. The command ls with database
+================================================================================
+
+The command:
+	ls <dbname>
+shows a list of the tables of the database <dbname>
+
+For example the following command shows all the tables of the database 
+`information_schema`:
+
+	$ samples/mysql ls information_schema
+	CHARACTER_SETS	COLLATIONS	COLLATION_CHARACTER_SET_APPLICABILITY	
+	COLUMNS	COLUMN_PRIVILEGES	ENGINES	EVENTS	FILES	GLOBAL_STATUS	
+	GLOBAL_VARIABLES	KEY_COLUMN_USAGE	PARTITIONS	PLUGINS	
+	PROCESSLIST	PROFILING	REFERENTIAL_CONSTRAINTS	ROUTINES	
+	SCHEMATA	SCHEMA_PRIVILEGES	SESSION_STATUS	
+	SESSION_VARIABLES	STATISTICS	TABLES	TABLE_CONSTRAINTS
+	TABLE_PRIVILEGES	TRIGGERS	USER_PRIVILEGES	VIEWS
+
+and of the database `mysql`:
+
+	$ samples/mysql ls mysql
+	columns_priv	db	event	func	general_log	help_category	
+	help_keyword	help_relation	help_topic	host	
+	ndb_binlog_index	plugin	proc	procs_priv	
+	servers	slow_log	tables_priv	time_zone	
+	time_zone_leap_second	time_zone_name	time_zone_transition	
+	time_zone_transition_type	user	
+
+
+4.3. The command ls with table
+================================================================================
+
+The command:
+	ls <dbname> <table>
+displays all the contents of the table <table> in the sql2text file format.
+
+For example the following command shows the first ten lines of the contents 
+of the table `COLLATION_CHARACTER_SET_APPLICABILITY' in sql2text file format:
+
+	$ samples/mysql ls information_schema \
+	> COLLATION_CHARACTER_SET_APPLICABILITY | head
+	COLLATION_NAME(v32)*	CHARACTER_SET_NAME(v32)*
+	big5_chinese_ci	big5
+	big5_bin	big5
+	dec8_swedish_ci	dec8
+	dec8_bin	dec8
+	cp850_general_ci	cp850
+	cp850_bin	cp850
+	hp8_english_ci	hp8
+	hp8_bin	hp8
+	koi8r_general_ci	koi8r
+
+One more example is:
+
+	$ samples/mysql ls mysql help_keyword | head
+	help_keyword_id(i)!	name(c64)*
+	0	JOIN
+	1	HOST
+	2	REPEAT
+	3	SERIALIZABLE
+	4	REPLACE
+	5	AT
+	6	SCHEDULE
+	7	RETURNS
+	8	STARTS
+
+Note that we use the linux program `head' to limit the output to 10 lines
+because the full output would be too long for this manual.
+
+
+4.4. The command lsh
+================================================================================
+
+The command:
+	lsh <dbname> <table>
+displays only the header of the table <table> in the sql2text file format.
+
+For the two examples used for the `ls' command we will now use `lsh' to get
+only the headers without the records:
+
+	$ samples/mysql lsh information_schema \
+	> COLLATION_CHARACTER_SET_APPLICABILITY 
+	COLLATION_NAME(v32)*	CHARACTER_SET_NAME(v32)*
+
+	$ samples/mysql lsh mysql help_keyword
+	help_keyword_id(i)!	name(c64)*
+
+
+4.5. The command mv with table
+================================================================================
+
+The command:
+	mv <dbname> <table> <new>
+
+Renames a table, from <table> to <new> in the database <db>.
+In the following example, we will change the table name from `db' to `db2':
+
+	$ samples/mysql ls test
+	db	help_keyword	servers	user	
+
+	$ samples/mysql mv test db db2
+
+	$ samples/mysql ls test
+	db2	help_keyword	servers	user
+
+Then we change it back to `db':
+
+	$ samples/mysql mv test db2 db
+
+
+4.6. The command mv with line
+================================================================================
+
+The command:
+	mv <dbname> <table> <old> <new>	
+
+Updates the row <old> to <new> in the specified <table>.
+Both the rows <old> and <new> should be given in the sql2text file format.
+If the row <old> is not found, no row is affected.
+
+In the following example we will change one value in a row in the test table
+`help_keyword' and we will verify the change. Then we will change it back to
+its original value:
+
+	$ samples/mysql ls test help_keyword | head
+	help_keyword_id(i)!	name(c64)*
+	0	JOIN
+	1	HOST
+	2	REPEAT
+	3	SERIALIZABLE
+	4	REPLACE
+	5	AT
+	6	SCHEDULE
+	7	RETURNS
+	8	STARTS
+
+In order to insert the `tab' character at the command line, we use the
+keyboard sequence Ctrl-V `tab':
+
+	$ samples/mysql mv \
+	> test help_keyword  '1	HOST' '1	HELLO, WORLD!'
+
+	$ samples/mysql ls test help_keyword | head
+	help_keyword_id(i)!	name(c64)*
+	0	JOIN
+	1	HELLO, WORLD!
+	2	REPEAT
+	3	SERIALIZABLE
+	4	REPLACE
+	5	AT
+	6	SCHEDULE
+	7	RETURNS
+	8	STARTS
+	$ samples/mysql mv \
+	> test help_keyword '1    HELLO, WORLD!' '1       HOST'
+
+	$ samples/mysql ls test help_keyword | head
+	help_keyword_id(i)!	name(c64)*
+	0	JOIN
+	1	HOST
+	2	REPEAT
+	3	SERIALIZABLE
+	4	REPLACE
+	5	AT
+	6	SCHEDULE
+	7	RETURNS
+	8	STARTS
+
+
+4.7. The command rm with database
+================================================================================
+
+The command:
+	rm <dbname> 			
+
+Completely removes the database <db>
+
+Example:
+	$ samples/mysql rm test
+
+
+
+4.8. The command rm with table
+================================================================================
+
+The command:
+	rm <dbname> <table> 		
+
+Removes a table with name <table> from the database <db>
+
+Example:
+	$ samples/mysql rm test user
+
+
+
+4.9. The command rm with line
+================================================================================
+
+The command:
+	rm <dbname> <table> <x>		
+
+Removes a single row <x> from the table <table> in database <db>.
+The row <x> should be given in the sql2text file format. If the row <x> is 
+not found, no row is affected.
+
+For example, we will see the contents of the table `help_keyword' before and
+after removing a single row:
+
+	$ samples/mysql ls test help_keyword | head
+	help_keyword_id(i)!	name(c64)*
+	0	JOIN
+	1	HOST
+	2	REPEAT
+	3	SERIALIZABLE
+	4	REPLACE
+	5	AT
+	6	SCHEDULE
+	7	RETURNS
+	8	STARTS
+
+	Again, in order to insert the `tab' character at the command line, we 
+	use the	keyboard sequence Ctrl-V `tab':
+
+	$ samples/mysql rm test help_keyword  '1	HOST'
+	$ samples/mysql ls test help_keyword | head
+	help_keyword_id(i)!	name(c64)*
+	0	JOIN
+	2	REPEAT
+	3	SERIALIZABLE
+	4	REPLACE
+	5	AT
+	6	SCHEDULE
+	7	RETURNS
+	8	STARTS
+	9	MASTER_SSL_CA
+
+
+4.10. The command rmd
+================================================================================
+
+The command:
+	rmd <dbname> <table> 		
+
+Removes all the existing rows from table <table> in database <db>
+
+For example, we delete everything from the test table `help_keyword':
+
+	$ samples/mysql rmd test help_keyword
+	$ samples/mysql ls test help_keyword
+	help_keyword_id(i)!	name(c64)*
+
+
+4.11. The command mk with database
+================================================================================
+
+The command:
+	mk <dbname>	 		
+
+Creates a new database with the name <db>
+
+For example:
+
+	$ samples/mysql mk my_test_database
+	$ samples/mysql ls                 
+	information_schema	my_test_database	mysql	phpmyadmin	
+	test
+
+4.12. The command mk with table
+================================================================================
+
+The command:
+	mk <dbname> <table> <head>	
+
+Creates a new <table> in the database <db> given the head row <head>.
+The head row should be given in the sql2text head row format.
+For example we will create a table with the head row:
+
+	id(i)!+	name(c64)*	university(c64)	description(T)
+
+Same as before, in order to insert the `tab' character at the command line, 
+we use the keyboard sequence Ctrl-V `tab'.
+
+	$samples/mysql mk my_test_database my_table \
+	> 'id(i)!+	name(c64)*	university(c64)	description(T)'
+
+We can verify the table creation:
+
+	$ samples/mysql ls my_test_database
+	my_table	
+	$ samples/mysql ls my_test_database my_table
+	id(i)!+	name(c64)*	university(c64)	description(T)
+
+4.13. The command add
+================================================================================
+
+The command:
+	add <dbname> <table> <new>	
+
+Inserts a new record <x> into the <table> of the database <db>
+
+The record <x> should be given as a text row in the sql2text file format.
+For example we will insert a new row to the table that was created 
+in the `mk' command example. The row that we insert is:
+
+	1	Kimon Kontosis	N. & K. University of Athens	s2tfs developer
+
+Once again, in order to insert the `tab' character at the command line, 
+we use the keyboard sequence Ctrl-V `tab'.
+
+	$ samples/mysql add my_test_database my_table \
+	> '1	Kimon Kontosis	N. & K. University of Athens	'\
+	> 's2tfs developer'
+
+We can verify the insertion:
+
+	$ samples/mysql ls my_test_database my_table
+	id(i)!+	name(c64)*	university(c64)	description(T)
+	1	Kimon Kontosis	N. & K. University of Athens	s2tfs developer
+
+4.14. The command def 
+================================================================================
+
+The command:
+	def <col>
+
+Finds the sql definition of a column <col> given in sql2text column format.
+It converts a header of one single column <col> to its sql equivalent.
+This command outputs two values. The first is the sql type of the column.
+
+The second value displays the name of the column, if and only if the column
+participates in the primary key of the table. If not the second value is empty.
+
+The def command is better described with an example:
+
+	$ samples/mysql def 'id(i)!+'
+	`id` int NOT NULL AUTO_INCREMENT	`id`
+
+The left value is the most important:
+	`id` int NOT NULL AUTO_INCREMENT
+
+it is the string used in an sql statement when creating a table that contains
+the sql2text column 'id(i)!+'.
+
+This command is essentially a conversion between the sql2text header and sql.
+In the above example, the second value is `id` because the column `id` is in
+the primary key, because of the attribute `!'.
+
+
+4.15. The command deco
+================================================================================
+The command:
+deco <row>			
+
+Finds the actual values from single plain text <row> given in sql2text format.
+This command essentially demonstrates the decoding of an sql2text row.
+
+Once more, in order to insert the `tab' character at the command line, 
+we use the keyboard sequence Ctrl-V `tab'.
+
+The following example decodes a simple row with two values:
+
+	$ samples/mysql deco  '1	HOST'
+	(1, 1)	(1, HOST)
+
+Each value is represented in a tuple (<N>, <V>)
+The <V> entry is the decoded value itself.
+The <N> entry is 1 if there is a value, or 0 if the given value is NULL.
+
+We now give some examples with NULL values and with various escape sequences
+in the sql2text input:
+
+	$ samples/mysql deco '1    \N'
+	(1, 1)	(0, )	
+
+	$ samples/mysql deco '1    Hello, World!'
+	(1, 1)	(1, Hello, World!)	
+
+	$ samples/mysql deco '1    Hello,\tWorld!'
+	(1, 1)	(1, Hello,	World!)	
+
+	$ samples/mysql deco '1    Hello,\nWorld!'
+	(1, 1)	(1, Hello,
+	World!)	
+
+	$ samples/mysql deco '1    "Hello, World\\!'
+	(1, 1)	(1, "Hello, World\!)	
+
+	$ samples/mysql deco '1    "Hello,\{65}World!'
+	(1, 1)	(1, "Hello,AWorld!)	
+
+
+5. The libsql2text C++ library
+================================================================================
+
+Here we document the use of the libsql2text C++ library.
+
+
+5.1. Building a program with libsql2text
+================================================================================
+
+In order to use libsql2text for a custom C++ program the library needs to be
+built first. This can be done by following the INSTALLATION instructions.
+
+For the include and library files, the directory of libsql2text needs to be
+included by the compiler.
+
+The source program also needs to include the sql2text header file:
+
+        #include "sql2text.hpp"
+        
+The library `libsql2text` also needs to be statically linked with the 
+binary file. In addition, the library `libretranse` along with the libraries 
+for Perl regular expressions `libpcre++` and `libpcre` and the library 
+`cppdb` (part of the `cppcms` open source project) plus `libodbc` also 
+need to be linked.
+The `cppdb' shared libraries for the drivers of the various databases, e.g.
+`libcppdb_mysql.so' need to accessible and installed or found in the 
+LD_LIBRARY_PATH. Otherwise their path should be given through the connection
+string, provided that we require such a database type.
+
+An example compilation with g++ is the following:
+
+        g++ file.cpp -I ../sql2text -I ../retranse -I ../cppdb \
+	> -L ../sql2text -L ../retranse -L ../cppdb/lib \
+	> -lsql2text -lretranse -lpcre++ -lpcre -lcppdb -lodbc
+
+Note that for static linkage, the g++ should be given:
+
+	-l:libsql2text.a	instead of -lsql2text
+	-l:libretranse.a	instead of -lretranse
+	-l:libcppdb.a		instead of -lcppdb
+
+	
+5.2. Using libsql2text
+================================================================================
+
+The following sample C++ program is an example that loads everything that
+is needed in order to initialize the sql2text library with a given connection
+string. The retranse configuration of sql2text is also loaded.
+After an sql2text::handle is initialized, an example operation is done: all
+the databases are listed. 
+The following code is actually a simplified version of the sql2text file
+`main.cpp' which is the command line program of sql2text that was documented.
+The instructions for compiling the following code are given in the section 
+above.
+
+	#include <iostream>
+	#include "sql2text.hpp"
+	using namespace std;
+
+	int main()
+	{
+		// step 1: initialize the retranse configuration
+		const char* cfg_dir = "etc/sql2text";
+		// need to change to the directory before compiling the 
+		// configuration files, to allow including of files.
+		if(chdir(cfg_dir)) { 
+			cerr << "error: cannot chdir to " << cfg_dir << endl;
+			return 1; 
+		}
+		retranse::node* nc = retranse::compile("config.ret");
+		// change back to original directory
+		if(chdir("../..")) {
+			cerr << "error: cannot chdir to ../.." << endl;
+			return 1; 
+		}
+		if(!nc) {
+			cerr << "error in configuration file" << endl;
+			return 1;
+		}
+		// step 2: initialize a cppdb connection
+		cppdb::session* sql;
+		cppdb::connection_info ci("mysql:user=root;password=root");
+		try {
+			ci.properties["@modules_path"] = "lib/sql2text/shared";
+			sql = new cppdb::session(ci);
+		} 
+		catch(...) {
+			cerr << "cannot create cppdb connection" << endl;
+			return 1;
+		}
+		// step 3: initialize libsql2text handle
+		try {
+			sql2text::handle h(ci, *sql, nc);
+			// check correct initialization of h
+			if(!h.check()) {
+				cout << "cannot initialize sql2text" << endl;
+				return 1;
+			}
+			// make calls to sql2text handle `h'
+			
+			// example: list databases
+			vector<string> dbs = h.ls_root();
+			for(unsigned i = 0; i < dbs.size(); i++) 
+				cout << dbs[i] << endl;
+				
+			// ...
+			
+		} catch(retranse::rtex const &x) {
+			cerr << "retranse error: " << x.what() << endl;
+			return 1;
+		} catch(exception const &x) {
+			cerr << "error: " << x.what() << endl;
+			return 1;
+		}
+		return 0;
+	}
+
+Note that for the above sample to run, the database that is referred to by
+the connection string
+
+	mysql:user=root;password=root
+	
+has to exist, or the connection string has to be modified appropriately.
+Also, the retranse configuration file of sql2text, named `config.ret'
+should exist in the directory
+
+	./etc/sql2text
+	
+This is relative to the execution directory. Also and the cppdb driver 
+modules should exist in the relative directory
+
+	./lib/sql2text/shared
+	
+Those paths are hardcoded in the above source code.
+Once the given sample is run, it outputs the list of the databases that
+can be accessed by libsql2text. An example output for this sample is:
+
+	information_schema
+	my_test_database
+	mysql
+	phpmyadmin
+	test
+
+Once the `sql2text::handle h' is initialized, any of the sql2text operations 
+listed in the following section (sql2text API reference) can be performed.
+
+
+5.3. libsql2text API reference
+================================================================================
+
+The following function calls and types belong to namespace `sql2text'
+and are hereby being documented:
+
+5.3.1. Types
+================================================================================
+
+	//! The following struct holds information about a table
+	struct tbl
+	{
+		//! True if the table has a primary key
+		bool has_prim;
+		
+		//! The number of table fields
+		int fields;
+		
+		//! The table column names
+		std::vector<std::string> col;
+		
+		//! A list of indices of the columns that belong
+		//! to the primary key.
+		std::vector<int> prim;
+	};
+
+	//! A struct that corresponds to a connection to a database using
+	//! sql2text. It is a handle from which all sql2text operations
+	//! can be done.
+	struct handle;
+
+5.3.2. sql2text handle Constructors
+================================================================================
+
+	//! Creates an sql2text handle.
+	//! A cppdb::session for the connection to the database is required
+	//! along with its cppdb::connection_info.
+	//! Also, a compiled retranse configuration file is required.
+	//! The retranse configuration file should contain all the required
+	//! methods for sql2text.
+	handle::handle(cppdb::connection_info& ci, cppdb::session& sql, 
+		retranse::node* nc);
+	
+	//! A copy constructor. Used to make a clone of an existing handle.
+	handle::handle(const handle& o);
+	
+5.3.2. Database Operations
+================================================================================
+
+	// check configuration for db engine
+	bool handle::check();
+	
+	// list all the databases
+	std::vector<std::string> handle::ls_root();
+	
+	// list all the tables
+	std::vector<std::string> handle::ls_db(const std::string& db);
+	
+	// list all columns
+	std::vector<std::string> handle::ls_tab(const std::string& db, 
+		const std::string& tab);
+		
+	// list column important attributes
+	std::string handle::ls_col_prop(const std::string& db, 
+		const std::string& tab, const std::string& col);
+		
+	// list column in sql2text format
+	std::string handle::ls_col(const std::string& col, 
+		const std::string& prop);
+	
+	// list table header in sql2text format
+	std::string handle::ls_tabh(const std::string& db, 
+		const std::string& tab);
+	
+	// output all table contents in sql2text format
+	void handle::cat_tab(const std::string& db, const std::string& tab,
+		std::ostream& out);
+	
+	// column definition
+	std::vector<std::string> handle::def_col(const std::string& col);
+	
+	// rename table
+	bool handle::mv_tab(const std::string& db, const std::string& tab, 
+		const std::string& s);
+	
+	// remove database
+	bool handle::rm_db(const std::string& db);
+	
+	// remove table
+	bool handle::rm_tab(const std::string& db, const std::string& tab);
+	
+	// remove table data
+	bool handle::rm_data(const std::string& db, const std::string& tab);
+	
+	// create database
+	bool handle::mk_db(const std::string& db);
+	
+	// create table given head line in sql2text format
+	bool handle::mk_tab(const std::string& db, const std::string& tab, 
+		const std::string& head);
+	
+
+5.3.3. Database Table Based Operations
+================================================================================
+
+	// remove 1 row from table
+	bool handle::rm_tab_row(const tbl& info, const std::string& db, 
+		const std::string& tab, const std::string& row);
+	
+	// insert 1 row to table
+	bool handle::add_tab_row(const tbl& info, const std::string& db, 
+		const std::string& tab, const std::string& row);
+	
+	// update row in table
+	bool handle::mv_tab_row(const tbl& info, const std::string& db, 
+		const std::string& tab, const std::string& prev, 
+		const std::string& next);
+	
+	// list table header, get info
+	std::string handle::info_tab(tbl& info, const std::string& db, 
+		const std::string& tab);
+	
+	// update row on table, using sql update. table must have primary key
+	bool handle::update_tab_row_imp(const tbl& info, 
+		const std::string& db, const std::string& tab, 
+		const std::string& prev, const std::string& next);
+	
+
+5.3.4. Row Format Operations
+================================================================================
+
+	// decode the given row from sql2text format to a list of values,
+	// also containing a bool that is false when the value is NULL.
+	std::vector<std::pair<bool, std::string> > 
+		decompose(const std::string& s);
+
+5.4. The retranse configuration file
+================================================================================
+
+In order for libsql2text to be able to run, a proper retranse configuration
+file should be given. The retranse configuration virtually implements most 
+of the sql2text operations.
+
+The file `etc/sql2text/config.ret' is a self-documented configuration file that
+has serveral functions which perform the necessary operations of sql2text.
+Some of the functions included in this file need to be overriden. This
+file includes all the files in `etc/sql2text/engine/*.ret` which defines
+overrides for specific database engine types.
+The file `etc/sql2text/engine/mysql.ret` defines all the required overrides
+for the mysql engine. The detection and overriding based on the engine type
+is done by using the engine type name which is passed as the first parameter 
+to all functions. This engine type name is taken from the database connection 
+string.
+
+By observing the given configuration files and the specifications given in the 
+comments, one should perhaps be capable of writing an explicit specialization
+for a different engine type in a new retranse configuration file that
+could be placed in the `engine' subdirectory.
+
+The configuration file is written in the retranse programming language.
+Documentation for the retranse programming language can be found at the
+retranse open source project.

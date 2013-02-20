@@ -1,0 +1,2 @@
+./sql2text "mysql:user=root;password=root" "$@"
+
