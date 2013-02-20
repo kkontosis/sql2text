@@ -1,8 +1,7 @@
 libsql2text INSTALLATION
 
-An easy way to build libsql2text is to download and use the `sql2textbuilder.sh` 
-script, which can be found in the `sql2textfs' project site.
-It handles downloading and building the special dependencies automatically.
+An easy way to build libsql2text is to use the `buildsql2text.sh` script
+which handles downloading and building the special dependencies automatically.
 The following instructions give details for a manual installation.
 
 1. Requirements
