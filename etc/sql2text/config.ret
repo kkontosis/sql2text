@@ -1,0 +1,446 @@
+#!retranse -t
+
+##############################################################################
+# main `retranse` configuration file for libsql2text and sql2textfs          #
+#                                                                            #
+##############################################################################
+
+#meta retranse-dialect A
+
+#include engine/.*\.ret
+
+
+global db
+global tab
+
+# ----------------------------------------------------------------------------
+
+# The db connection-string property for the database name.
+# Multiple properties are given best first ':' separated.
+# Accepts: database engine
+
+function dbname ( .* )
+{
+  reduce to database:db
+}
+
+# ----------------------------------------------------------------------------
+
+# override. check that engine config exists. need to return \e
+
+function check ( (.*) )
+{
+  error "No configuration file found for db engine type: $0"
+
+# engine-specific variable initialization is always done here
+#  global can_mv_db = 0
+}
+
+# ----------------------------------------------------------------------------
+
+# Query to list the databases. Accepts: db engine
+
+function ls_root ( .* )
+{
+  reduce to "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA"
+}
+
+# ----------------------------------------------------------------------------
+
+# Query to list the current database tables. Accepts: db engine, db name
+
+function ls_db ( .* (.*) )
+{
+  reduce to "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?" $0
+}
+
+# ----------------------------------------------------------------------------
+
+# Query to list the current table rows. Accepts: db engine, db name, db table
+
+function ls_tab ( .* (.*) (.*) )
+{
+  reduce to "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE ( TABLE_SCHEMA = ? AND TABLE_NAME = ? ) ORDER BY ORDINAL_POSITION" $0 $1
+}
+
+# ----------------------------------------------------------------------------
+
+# Result of shorthand col description. 
+# Accepts: db engine, col name, a_ls_col_prop result
+
+function ls_col ( (.*) (.*) (.*) )
+{
+  .* $2
+  #t $(a2) [L]
+  call ls_col_ ( $(a1) $0 )
+  .* $1
+  (.*)\:(.*) -
+  call ls_col_join ( $1 $2 )
+  .* $(a2)$1
+}
+
+# ----------------------------------------------------------------------------
+
+# implements part of ls_col
+
+function ls_col_ ( .* (.*) )
+{
+  # disallow primary key of text type, convert to varchar 64 instead
+  t\:\!(.*) $1 [B,NC] { 
+	call ls_type_join ( v 64 ) 
+	reduce to $1:!$0
+  }
+}
+
+# ----------------------------------------------------------------------------
+
+# Query to get important attributes of a column (Engine-Specific)
+# Accepts: db engine, db name, db table, column name
+# Attributes to request are:
+# 1. data type
+# 2. not null flag
+# 3. primary key flag
+# 4. autoincrement flag
+
+function q_ls_col_prop ( .* (.*) (.*) (.*) )
+{
+  reduce to "SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE ( TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? )" $0 $1 $2
+}
+
+# ----------------------------------------------------------------------------
+
+# Respond to query of q_ls_col_prop to implement listing the
+# attributes of a column (in a short form)
+# First convert result to internal normalized form
+# then calls normal-based n_ls_col_prop.
+# This function may need to be overloaded.
+# Accepts: db engine, query results of q_ls_col_prop
+# 1. data type (r1)
+# 2. not null flag (r2)
+# 3. primary key flag (r3)
+# 4. autoincrement flag (r4)
+# returned canonical form (r2r3r4r1) of:
+# data type: engine_type[(num)]
+# others: 1: true, 0: false
+
+function a_ls_col_prop ( (.*) (.*) (.*) (.*) (.*) )
+{
+  call r1 = a_ls_col_TYPE ( $0 $(a2) )
+  call r2 = a_ls_col_NOTNULL ( $0 $(a3) )
+  call r3 = a_ls_col_KEY ( $0 $(a4) )
+  call r4 = a_ls_col_AUTOINC ( $0 $(a5) )
+  reduce call n_ls_col_prop ( $(a1) $(r2)$(r3)$(r4)$(r1) )
+}
+
+function a_ls_col_TYPE ( .* (.*) ) {
+}
+
+function a_ls_col_NOTNULL ( .* (.*) ) {
+  YES 0 [L]
+  .* 1
+}
+
+function a_ls_col_KEY ( .* (.*) ) {
+  PRI 1 [L]
+  .* 0
+}
+
+function a_ls_col_AUTOINC ( .* (.*) ) {
+  auto_increment 1 [L,NC]
+  .* 0
+}
+
+# ----------------------------------------------------------------------------
+
+# Function to convert column attributes to short description
+# Accepts: db engine, ls_col canonical description: 
+# <XYZtype> X,Y,Z=[0,1], type=eng-spec.
+
+function n_ls_col_prop ( (.*) (.*) ) 
+{
+  .* $1
+  (...)(.*) $1
+  call t = ls_type ( $(a1) $2 )
+  .* $0$(t)
+
+  # not null primary key autoincrement
+  111(.*) "$1:!+" [L]
+  # not null autoincrement
+  101(.*) "$1:+" [L]
+  # primary key autoincrement
+  011(.*) "$1:!+" [L]
+  # autoincrement
+  001(.*) "$1:+" [L]
+
+  # not null primary key
+  110(.*) "$1:!" [L]
+  # not null
+  100(.*) "$1:*" [L]
+  # primary key 
+  010(.*) "$1:!" [L]
+  #
+  000(.*) "$1:" [L]
+}
+
+# ----------------------------------------------------------------------------
+
+# Function to convert from engine-specific type to short description
+# The type and description is without size-specifiers
+# Generic ls_type_trans, should be overrided by engine configuration
+# This is an example-function
+
+# ----------------------------------------------------------------------------
+#
+# type codes:
+# 
+#  c   : char (need specifier [])
+#  v   : varchar (need specifier [])
+#  i,I : integer (smaller, larger)
+#  f,F : floating point (smaller, larger)
+#  d,D : date, date and time
+#  h,H : time, timestamp (with precision)
+#  t,T : text (smaller, larger)
+#  b,B : binary data, blob
+#
+#
+# ----------------------------------------------------------------------------
+
+function ls_type_join ( (.*) (.*) )
+{
+  reduce to $0$1
+}
+
+function ls_col_join ( (.*) (.*) )
+{
+  t - [B] { cond ( $1 == \e ) reduce to \e }
+  reduce to ($0)$1
+}
+
+# ----------------------------------------------------------------------------
+
+# Convert bare type to short description
+# override
+function ls_type_trans ( .* (.*) )
+{
+#...
+}
+
+# ----------------------------------------------------------------------------
+
+# Called at the beginning of ls_type
+# override
+function ls_type_pre ( .* (.*) )
+{
+}
+# ----------------------------------------------------------------------------
+
+# Function to convert from engine-specific type to short description
+# including sizers e.g. int(10). Normally calls ls_type_trans
+# This function may be overrided by engine configuration if necessary
+
+function ls_type ( (.*) (.*) )
+{
+  call ls_type_pre ( $0 $1 )
+  .* $1
+  set 2 = \e
+  (.*)(\(.*\)) -
+  set 0 = $2
+  call ls_type_trans ( $(a1) $1 )
+  set 0 = $1$0
+  v\((.*)\) - [B,NC] { reduce call ls_type_join ( v $1 ) }
+  c\((.*)\) - [B,NC] { reduce call ls_type_join ( c $1 ) }
+  (.*)\(.*\) $1
+}
+
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Reverse functions
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+
+# Reverse-list of type. Convert bare short-description of type to actual 
+# engine-specific type
+#override
+function rls_type_trans ( .* (.*) )
+{
+}
+
+# ----------------------------------------------------------------------------
+
+# Reverse-list of type. Lists engine-specific type given a short description
+# of the type. Generates a quite-appropriate engine type based on the
+# short language
+
+function rls_type ( (.*) (.*) )
+{
+  .* $1
+  set ind = ""
+  (.+)\[(.+)\] $1 [B] { set ind = ($2) }
+  call rls_type_trans ( $(a1) $0 )
+  reduce to $1$(ind)
+}
+
+
+# ----------------------------------------------------------------------------
+
+# Reverse-list of column properties.
+# Accepts: engine, column string
+# Returns: bit code {0|1}{0|1}{0|1} and type
+
+function rls_col_prop ( (.*) (.*) )
+{
+  call n_rls_col_prop ( $0 $1 )
+  .* $1
+  (...)(.*) $1
+  call rls_type ( $(a1) $2 )
+  reduce to $0$1
+}
+
+# ----------------------------------------------------------------------------
+
+# Reverse-list of column properties, implementation
+# Accepts: engine, column string
+# Returns: intermediate state
+
+function n_rls_col_prop ( .* (.*) )
+{
+  cond ( ! ( $0 ~ .*\\\(.* ) ) reduce to 000t
+  .*(\(.*\).*) $1
+  \((.*)\)\!\+ 	111$1 [L]
+  \((.*)\)\! 	110$1 [L]
+  \((.*)\)\+ 	001$1 [L]
+  \((.*)\)\* 	100$1 [L]
+  \((.*)\) 	000$1 [L]
+}
+
+# ----------------------------------------------------------------------------
+
+# Returns the type definition of a column in the engine-specific sql
+# optionally returns a second argument which is to be added to a list for
+# processing later, to add the column name for the primary key
+# Accepts: engine, column string
+
+function def_col ( (.*) (.*) )
+{
+  call t = rls_col_prop ( $0 $1 )
+  .* $(a2)
+  (.*)\(.* $1
+  reduce call n_def_col ( $(a1) $0 $(t) )
+}
+# ----------------------------------------------------------------------------
+
+# Implementation of def_col
+#override
+function n_def_col ( (.*) (.*) )
+{
+}
+
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Operation functions
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+
+# List all rows of a table
+# Accepts: engine, db name, table name
+# may need override
+function q_cat_tab ( .* (.*) (.*) )
+{
+  reduce to "SELECT * FROM `$0`.`$1`"
+}
+
+# ----------------------------------------------------------------------------
+
+# Function for sql to create a table
+# Accepts: engine, db name, table name, 
+#   table SQL definition (engine-specific), 
+#   primary key columns (comma separated, optional)
+# may need override
+function mk_tab ( .* (.*) (.*) (.*) (.*) )
+{
+  cond ( $3 != \e )
+	reduce to "CREATE TABLE IF NOT EXISTS `$0`.`$1` ( $2, PRIMARY KEY ( $3 ) ) CHARSET=utf8";
+
+  reduce to "CREATE TABLE IF NOT EXISTS `$0`.`$1` ( $2 ) CHARSET=utf8";
+}
+
+# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+
+# Rename a table
+# Accepts: engine, db name, old table name, new table name
+# may need override
+function mv_tab ( .* (.*) (.*) (.*) )
+{
+reduce to "RENAME TABLE `$0`.`$1` TO `$0`.`$2`"
+}
+
+# ----------------------------------------------------------------------------
+
+# Delete a database
+# Accepts: engine, db name
+# may need override
+function rm_db ( .* (.*) )
+{
+reduce to "DROP DATABASE `$0`"
+}
+
+# ----------------------------------------------------------------------------
+
+# Remove a table
+# Accepts: engine, db name, table name
+# may need override
+function rm_tab ( .* (.*) (.*) )
+{
+reduce to "DROP TABLE `$0`.`$1`"
+}
+
+# ----------------------------------------------------------------------------
+
+# Remove records from table
+# Accepts: engine, db name, table name
+# may need override
+function rm_data ( .* (.*) (.*) )
+{
+reduce to "DELETE FROM `$0`.`$1`"
+}
+
+# ----------------------------------------------------------------------------
+
+# Create database
+# Accepts: engine, db name
+# may need override
+function mk_db ( .* (.*) )
+{
+reduce to "CREATE DATABASE `$0` CHARACTER SET = `utf8`"
+}
+
+# ----------------------------------------------------------------------------
+
+# Remove 1 row only of a table with no primary key
+# Accepts: <engine> <db> <table> <where-clause>
+# Returns: single string, holding the query
+# override-only
+function rm_tab_1row ( (.*) (.*) (.*) (.*) )
+{
+error "rm_tab_1row: not implemented for database engine '$0'"
+}
+
+# ----------------------------------------------------------------------------
+
+
+# Function for insert
+
+
+
+
+
+
+##########################
+
+
+

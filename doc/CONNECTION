@@ -1,0 +1,53 @@
+sql2text CONNECTION STRING
+
+1. Connection strings in general
+================================================================================
+
+As given in Wikipedia:
+
+In computing, a connection string is a string that specifies information about 
+a data source and the means of connecting to it. It is passed in code to an 
+underlying driver or provider in order to initiate the connection. 
+Whilst commonly used for a database connection, the data source could also 
+be a spreadsheet or text file.
+
+The connection strings are in the form:
+
+	key1=value1;key2=value2...
+
+As an example, a very simple connection string for connecting to a local mysql 
+server is:
+
+	user=`username`;password=`password`
+
+	
+2. Connection strings in sql2text
+================================================================================
+
+The library libsql2text and the filesystem sql2textfs use cppdb as an
+interface to the database. The connection string for cppdb has a first part
+which is the name of the used driver.
+
+The total connection string is in the form:
+
+	driver:key1=value1;key2=value...
+	
+As of the time being, the following drivers are supported in cppdb, as long as 
+they are built:
+
+	mysql
+	postgresql
+	sqlite3
+	odbc
+
+So, an example of a valid sql2text (cppdb) connection string is:
+
+	mysql:user=root;password=root
+	
+Note that the driver `odbc` is a generic driver.
+However, we also need to note that in order for sql2text configuration files
+to be able to work with an odbc driver, there needs to be some extra work
+done: the engine name should be encoded in the engine name string, or in other
+words the string passed to the retranse functions should be `odbc:<drivername>`
+instead of simply `odbc` to enable the detection and overloading for specific 
+engines via odbc. This issue might be fixed in the latest versions of sql2text.

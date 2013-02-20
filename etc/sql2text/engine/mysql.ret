@@ -1,0 +1,122 @@
+# retranse config for sqltextmount
+# engine: mysql
+
+# ----------------------------------------------------------------------------
+
+function check ( mysql )
+{
+  .* \e
+# mysql-specifics
+  global can_mv_db = 0
+}
+
+# ----------------------------------------------------------------------------
+
+function ls_type_pre ( mysql (.*) )
+{
+  (.*)\sunsigned $1 [NC]
+}
+
+# ----------------------------------------------------------------------------
+
+function ls_type_trans ( mysql (.*) )
+{
+  bigint	I [L,NC]
+  binary	b [L,NC]
+  blob 		B [L,NC]
+  char 		c [L,NC]
+  date 		d [L,NC]
+  datetime	D [L,NC]
+  decimal	f [L,NC]
+  double	F [L,NC]
+#  enum		? [L,NC]
+  float		f [L,NC]
+  int		i [L,NC]
+  longblob	B [L,NC]
+  longtext	T [L,NC]
+  mediumblob	B [L,NC]
+  mediumint	i [L,NC]
+  mediumtext	t [L,NC]
+  real		F [L,NC]
+#  set		? [L,NC]
+  smallint	i [L,NC]
+  text		t [L,NC]
+  time		h [L,NC]
+  timestamp	H [L,NC]
+  tinyblob	B [L,NC]
+  tinyint	i [L,NC]
+  tinytext	t [L,NC]
+  varbinary	b [L,NC]
+  varchar	v [L,NC]
+  
+  reduce to	t
+}
+
+# ----------------------------------------------------------------------------
+
+function rls_type_trans ( mysql (.*) )
+{
+  v(.+)		varchar($1) 	[L]
+  v		varchar 	[L]
+  c(.+)		char($1) 	[L]
+  c		char 		[L]
+
+  i		int		[L]
+  I		bigint 		[L]
+  b		varbinary	[L]
+  B		blob		[L]
+  d		date		[L]
+  D		datetime	[L]
+  f		decimal		[L]
+  F		double		[L]
+  h		time		[L]
+  H		timestamp	[L]
+  T		longtext	[L]
+  t		text		[L]
+}
+
+# ----------------------------------------------------------------------------
+
+# Accepts: engine, column name, reverse looked column string
+# column string contains: {0|1} not null, primary key, autoincrement flags
+# and the already rls translated type. 
+function n_def_col ( mysql (.*) (.*) )
+{
+  .* $1
+  000(.*) "`$(a1)` $1" [L]
+  100(.*) "`$(a1)` $1 NOT NULL" [L]
+  001(.*) "`$(a1)` $1 AUTO_INCREMENT" [L]
+  111(.*) "`$(a1)` $1 NOT NULL AUTO_INCREMENT" [B] { reduce to $0 `$(a1)` }
+  110(.*) "`$(a1)` $1 NOT NULL" [B] { reduce to $0 `$(a1)` }
+  reduce to "$(a2)"
+  #reduce call def_col_ ( $0 $1 )
+}
+
+
+# ----------------------------------------------------------------------------
+
+
+# Create database
+# override
+function mk_db ( mysql (.*) )
+{
+reduce to "CREATE DATABASE `$0` CHARACTER SET = `utf8`"
+}
+
+# ----------------------------------------------------------------------------
+
+# Remove 1 row only of a table with no primary key
+# Accepts: <engine> <db> <table> <where-clause>
+# Returns: single string, holding the query
+# override-only
+function rm_tab_1row ( mysql (.*) (.*) (.*) )
+{
+  reduce to "DELETE FROM `$0`.`$1` WHERE ( $2 ) LIMIT 1"
+}
+
+# ----------------------------------------------------------------------------
+
+
+
+
+

@@ -1,0 +1,38 @@
+`libsql2text' is a library for converting database tables to/from text files.
+Written by Kimon Kontosis in year 2012 for his major paper in
+Department of Informatics and Telecommunications,
+National & Kapodistrian University of Athens.
+Copyright (C) 2012, Kimon Kontosis
+
+
+The library `libsql2text` relies on `libretranse` which is the runtime
+library that parses and runs programs written in `retranse' - a language 
+based on regular expressions - which is part of the same project.
+The libsql2text library is also the basis for the `sql2textfs` project.
+This library reads tables from any database given a connection string
+and retrieves the table rows in a representation of lines of text.
+The text lines are tab-delimited to separate the data columns.
+This library is also capable of parsing lines of text and of converting
+back to tables and also modifies the database tables with entries
+of lines of text as data.
+The configuration file for this library is essential since much of the
+convertion functionality lies there and each database type requires
+a special configuration file. This file is written in retranse.
+For the database API the library uses `cppdb` which a the library for
+abstract database access used in the `cppcms` project. The cppdb
+library has an interface with `unixodbc` among others which is an ODBC
+driver that supports many databases. The cppdb layer complies with the 
+minimum required interface for this project and has simple C++ interface
+making the source code of libsql2text more reliable.
+This package contains the library and a program that demonstrates and runs 
+all the library functions from the command line.
+
+
+libsql2text is licensed under the GNU Lesser General Public License
+version 2.1 or later. See LICENSE.LESSER
+
+
+For libsql2text documentation see doc/MANUAL
+
+For INSTALLATION instructions see doc/INSTALL
+
