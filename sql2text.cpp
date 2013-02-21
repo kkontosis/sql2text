@@ -1,5 +1,5 @@
 /*  libsql2text, a library for converting database tables to/from text files
- *  Copyright (C) 2012, Kimon Kontosis
+ *  Copyright (C) 2013, Kimon Kontosis
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published
