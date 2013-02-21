@@ -1,8 +1,8 @@
 `libsql2text' is a library for converting database tables to/from text files.
-Written by Kimon Kontosis in year 2012 for his major paper in
+Written by Kimon Kontosis in year 2013 for his major paper in
 Department of Informatics and Telecommunications,
 National & Kapodistrian University of Athens.
-Copyright (C) 2012, Kimon Kontosis
+Copyright (C) 2013, Kimon Kontosis
 
 
 The library `libsql2text` relies on `libretranse` which is the runtime
