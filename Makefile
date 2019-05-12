@@ -9,8 +9,8 @@ RETRANSE_FLAGS=-I ../retranse
 RETRANSE_LIBS=-L../retranse -lretranse -lpcre++ -lpcre
 CPPDB_FLAGS=-I ../cppdb
 CPPDB_LIBS=-L ../cppdb/lib -lcppdb
-CPPDB_STATIC=-L ../cppdb/lib -lcppdb -lpthread -lmysqlclient -lpq -lodbc
-#CPPDB_STATIC=-L ../cppdb/lib -lcppdb -lodbc
+#CPPDB_STATIC=-L ../cppdb/lib -lcppdb -lpthread -lmysqlclient -lpq -lodbc
+CPPDB_STATIC=-L ../cppdb/lib -lcppdb -lodbc
 FLAGS=$(RETRANSE_FLAGS) $(CPPDB_FLAGS)
 LIBS=$(RETRANSE_LIBS) $(CPPDB_STATIC)
 
