@@ -6,11 +6,11 @@ ETCPATH=/
 
 CFLAGS=-Os -fPIC
 RETRANSE_FLAGS=-I ../retranse
-RETRANSE_LIBS=-l:../retranse/libretranse.a -lpcre++ -lpcre
+RETRANSE_LIBS=-L../retranse -lretranse -lpcre++ -lpcre
 CPPDB_FLAGS=-I ../cppdb
 CPPDB_LIBS=-L ../cppdb/lib -lcppdb
-#CPPDB_STATIC=-L ../cppdb/lib -l:libcppdb.a -lpthread -lmysqlclient -lpq -lodbc
-CPPDB_STATIC=-L ../cppdb/lib -l:libcppdb.a -lodbc
+CPPDB_STATIC=-L ../cppdb/lib -lcppdb -lpthread -lmysqlclient -lpq -lodbc
+#CPPDB_STATIC=-L ../cppdb/lib -lcppdb -lodbc
 FLAGS=$(RETRANSE_FLAGS) $(CPPDB_FLAGS)
 LIBS=$(RETRANSE_LIBS) $(CPPDB_STATIC)
 
@@ -21,22 +21,24 @@ LIBS=$(RETRANSE_LIBS) $(CPPDB_STATIC)
 all: sql2text libsql2text.a libsql2text.so
 
 
-DEPENDENCIES=lib/sql2text/shared/libcppdb_mysql.so lib/sql2text/shared/libcppdb_postgresql.so lib/sql2text/shared/libcppdb_sqlite3.so
-	
+DEPENDENCIES=lib/sql2text/shared/libcppdb_mysql.so lib/sql2text/shared/libcppdb_postgresql.so lib/sql2text/shared/libcppdb_sqlite3.so libretranse.so
 
-lib/sql2text/shared/libcppdb_mysql.so: 
-	cp ../cppdb/lib/libcppdb_mysql.so lib/sql2text/shared
+libretranse.so:
+	cp ../retranse/libretranse.so .
+	
+lib/sql2text/shared/libcppdb_mysql.so:
+	cp ../cppdb/lib/libcppdb_mysql.* lib/sql2text/shared
 
 lib/sql2text/shared/libcppdb_postgresql.so: 
-	cp ../cppdb/lib/libcppdb_postgresql.so lib/sql2text/shared
+	cp ../cppdb/lib/libcppdb_postgresql.* lib/sql2text/shared
 
 lib/sql2text/shared/libcppdb_sqlite3.so: 
-	cp ../cppdb/lib/libcppdb_sqlite3.so lib/sql2text/shared
+	cp ../cppdb/lib/libcppdb_sqlite3.* lib/sql2text/shared
 
 #main targets
 
 sql2text: main.o libsql2text.a $(DEPENDENCIES)
-	$(CXX) $(CFLAGS) $(FLAGS) -o sql2text main.o -L. -l:libsql2text.a $(LIBS)
+	$(CXX) $(CFLAGS) $(FLAGS) -o sql2text main.o -L. -lsql2text $(LIBS)
 
 main.o: main.cpp sql2text.hpp bindir.hpp
 	$(CXX) -c $(CFLAGS) $(FLAGS) main.cpp
@@ -51,7 +53,7 @@ libsql2text.a: sql2text.o $(DEPENDENCIES)
 	ar r libsql2text.a sql2text.o
 
 libsql2text.so: sql2text.o $(DEPENDENCIES)
-	$(CXX) $(CFLAGS) -shared -o libsql2text.so sql2text.o
+	$(CXX) $(CFLAGS) -shared -o libsql2text.so sql2text.o $(RETRANSE_LIBS) $(CPPDB_LIBS)
 
 .PHONY: clean, cleanall
 
