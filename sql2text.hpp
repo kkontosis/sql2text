@@ -12,7 +12,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU Lesser General Public License
- *  version 2.1 along with this program (see LICENSE.LESSER); if not, see 
+ *  version 2.1 along with this program (see LICENSE.LESSER); if not, see
  *  <http://www.gnu.org/licenses/>.
  *
 */
@@ -101,15 +101,15 @@ struct handle
 	// update row in table
 	bool mv_tab_row(const tbl& info, const std::string& db, const std::string& tab, const std::string& prev, const std::string& next);
 
-	
+
 	////////////////////////////////////////////////////////////////////////////////
 	// stage three: programmatically used ops //////////////////////////////////////
-	
+
 	// list table header, get info
 	std::string info_tab(tbl& info, const std::string& db, const std::string& tab);
 	// update row on table, using sql update. table must have primary key
 	bool update_tab_row_imp(const tbl& info, const std::string& db, const std::string& tab, const std::string& prev, const std::string& next);
-		
+
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -117,16 +117,16 @@ struct handle
 //
 namespace dbtxtio
 {
-	template<class T> inline
-	std::ostream& operator <<(std::ostream& o, const std::vector<T> & x)
-	{
-		for(size_t i=0;i<x.size();i++) o << x[i] << "\t";
-		return o;
-	}
 	template<class T, class S> inline
 	std::ostream& operator <<(std::ostream& o, const std::pair<T, S> & x)
 	{
 		o << "(" << x.first << ", " << x.second << ")";
+		return o;
+	}
+	template<class T> inline
+	std::ostream& operator <<(std::ostream& o, const std::vector<T> & x)
+	{
+		for(size_t i=0;i<x.size();i++) o << x[i] << "\t";
 		return o;
 	}
 }
